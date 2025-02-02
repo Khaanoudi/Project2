@@ -113,6 +113,10 @@ def analyze_sentiment(text):
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def fetch_news(published_after, article_limit=10):
     """Fetch news articles with caching"""
+    # Format the date properly
+    if isinstance(published_after, str):
+        published_after = f"{published_after}T00:00"  # Add time component
+        
     params = {
         "api_token": API_TOKEN,
         "countries": "sa",
@@ -123,6 +127,7 @@ def fetch_news(published_after, article_limit=10):
         "must_have_entities": "true",
         "group_similar": "true"
     }
+    
     try:
         response = requests.get(NEWS_API_URL, params=params, timeout=10)
         response.raise_for_status()
@@ -131,7 +136,6 @@ def fetch_news(published_after, article_limit=10):
     except requests.exceptions.RequestException as e:
         if hasattr(e, 'response') and e.response is not None:
             if e.response.status_code == 402:
-                # Return demo data when API limit is reached
                 return get_demo_news_data(published_after)
         st.error(f"Error fetching news: {str(e)}")
         return []
