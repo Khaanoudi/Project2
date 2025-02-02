@@ -11,7 +11,6 @@ from ta.volatility import BollingerBands
 
 # API Configuration
 NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
-MAX_ARTICLES = 3  # API limit constant
 
 # Get API key from secrets
 try:
@@ -23,7 +22,6 @@ except Exception as e:
 # Add constants at the top for better maintainability
 # After the imports section
 CACHE_TTL = 3600  # 1 hour
-DEFAULT_ARTICLE_LIMIT = 3
 DEFAULT_DAYS_AGO = 7
 RSI_OVERBOUGHT = 70
 RSI_OVERSOLD = 30
@@ -119,7 +117,7 @@ def fetch_news(published_after):
         "api_token": API_TOKEN,
         "countries": "sa",
         "filter_entities": "true",
-        "limit": MAX_ARTICLES,
+        "limit": article_limit,  # Use the user-selected limit
         "published_after": published_after,
         "language": "en",
         "must_have_entities": "true",
@@ -260,13 +258,13 @@ def main():
     days_ago = st.sidebar.slider("Show news published after:", 1, 30, 7)
     published_after = (datetime.now() - timedelta(days=days_ago)).strftime("%Y-%m-%d")
     
-    # Modify the article limit input to show the restriction
+    # Modify the article limit input to be more flexible
     article_limit = st.sidebar.number_input(
-        "Number of articles (max 3)", 
+        "Number of articles", 
         min_value=1, 
-        max_value=MAX_ARTICLES, 
-        value=MAX_ARTICLES,
-        help="Due to API limitations, maximum 3 articles can be fetched"
+        max_value=100, 
+        value=10,
+        help="Select the number of articles to fetch"
     )
 
     # Load company data
