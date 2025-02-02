@@ -35,10 +35,20 @@ def test_api_key():
         st.success("API key is valid and working.")
     except requests.exceptions.RequestException as e:
         st.error("Error validating API key. Please check your API key and try again.")
+        if hasattr(e, 'response') and e.response is not None:
+            if e.response.status_code == 401:
+                st.error("Invalid API key. Please check your API key in the secrets configuration.")
+            elif e.response.status_code == 402:
+                st.error("API usage limit reached. Please wait for the daily limit to reset or upgrade your plan.")
+            elif e.response.status_code == 429:
+                st.error("API rate limit exceeded. Please try again later.")
+            else:
+                st.error(f"API Error: {e.response.status_code}")
+        
         with st.expander("See error details"):
             st.write(f"Error type: {type(e).__name__}")
             st.write(f"Error message: {str(e)}")
-            if hasattr(e, 'response'):
+            if hasattr(e, 'response') and e.response is not None:
                 st.write(f"Response status code: {e.response.status_code}")
                 st.write(f"Response content: {e.response.text}")
         st.stop()
@@ -168,14 +178,16 @@ def analyze_company(company, idx):
             # Display stock chart
             fig = go.Figure()
             fig.add_trace(go.Candlestick(x=df.index,
-                                         open=df['Open'],
-                                         high=df['High'],
-                                         low=df['Low'],
-                                         close=df['Close'],
-                                         name='Price'))
+                                       open=df['Open'],
+                                       high=df['High'],
+                                       low=df['Low'],
+                                       close=df['Close'],
+                                       name='Price'))
             fig.add_trace(go.Scatter(x=df.index, y=df['BB_upper'], name='BB Upper'))
             fig.add_trace(go.Scatter(x=df.index, y=df['BB_lower'], name='BB Lower'))
-            fig.update_layout(title=f"{company.get('name')} Stock Price", xaxis_title="Date", yaxis_title="Price")
+            fig.update_layout(title=f"{company.get('name')} Stock Price", 
+                            xaxis_title="Date", 
+                            yaxis_title="Price")
             st.plotly_chart(fig, use_container_width=True)
             
             # Display technical indicators
