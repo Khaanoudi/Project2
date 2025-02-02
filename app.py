@@ -111,13 +111,13 @@ def analyze_sentiment(text):
     return sentiment, confidence
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def fetch_news(published_after):
+def fetch_news(published_after, article_limit=10):
     """Fetch news articles with caching"""
     params = {
         "api_token": API_TOKEN,
         "countries": "sa",
         "filter_entities": "true",
-        "limit": article_limit,  # Use the user-selected limit
+        "limit": article_limit,
         "published_after": published_after,
         "language": "en",
         "must_have_entities": "true",
@@ -276,7 +276,7 @@ def main():
 
     if st.button("Fetch News", use_container_width=True):
         with st.spinner('Fetching and analyzing news...'):
-            news_data = fetch_news(published_after)
+            news_data = fetch_news(published_after, article_limit)
 
             if not news_data:
                 st.warning("No news articles found for the selected time period.")
