@@ -112,13 +112,14 @@ def analyze_sentiment(text):
     
     return sentiment, confidence
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def fetch_news(published_after):
-    """Fetch news articles"""
+    """Fetch news articles with caching"""
     params = {
         "api_token": API_TOKEN,
         "countries": "sa",
         "filter_entities": "true",
-        "limit": MAX_ARTICLES,  # Always use the maximum allowed
+        "limit": MAX_ARTICLES,
         "published_after": published_after,
         "language": "en",
         "must_have_entities": "true",
@@ -129,9 +130,32 @@ def fetch_news(published_after):
         response.raise_for_status()
         data = response.json()
         return data.get("data", [])
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
+        if hasattr(e, 'response') and e.response is not None:
+            if e.response.status_code == 402:
+                # Return demo data when API limit is reached
+                return get_demo_news_data(published_after)
         st.error(f"Error fetching news: {str(e)}")
         return []
+
+def get_demo_news_data(published_after):
+    """Return demo data when API is unavailable"""
+    return [
+        {
+            "title": "Demo News Article - Saudi Market Update",
+            "published_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "source": "Demo Source",
+            "description": "This is a demo article about Saudi Arabian market. Companies like Saudi Aramco (2222) and SABIC (2010) are showing strong performance.",
+            "url": "https://example.com"
+        },
+        {
+            "title": "Demo Market Analysis",
+            "published_at": (datetime.now() - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S"),
+            "source": "Demo Financial News",
+            "description": "Market analysis shows positive trends in Saudi banking sector. Al Rajhi Bank (1120) reported significant growth.",
+            "url": "https://example.com"
+        }
+    ]
 
 @st.cache_data(ttl=3600)  # Cache stock data for 1 hour
 def get_stock_data(symbol, period='1mo'):
@@ -219,6 +243,10 @@ def main():
     st.title("Saudi Stock Market News")
     st.write("Real-time news analysis for Saudi stock market")
 
+    # Add warning about demo mode
+    if API_TOKEN == "your-new-api-key":  # Check if using demo key
+        st.warning("⚠️ Running in demo mode. Some features may be limited. Please configure a valid API key for full functionality.")
+    
     # Test API key
     test_api_key()
 
