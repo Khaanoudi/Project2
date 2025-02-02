@@ -11,6 +11,7 @@ from ta.volatility import BollingerBands
 
 # API Configuration
 NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
+MAX_ARTICLES = 3  # API limit constant
 
 # Get API key from secrets
 try:
@@ -18,6 +19,14 @@ try:
 except Exception as e:
     st.error("Error loading API key. Please check your secrets.toml file.")
     st.stop()
+
+# Add constants at the top for better maintainability
+# After the imports section
+CACHE_TTL = 3600  # 1 hour
+DEFAULT_ARTICLE_LIMIT = 3
+DEFAULT_DAYS_AGO = 7
+RSI_OVERBOUGHT = 70
+RSI_OVERSOLD = 30
 
 def test_api_key():
     try:
@@ -93,17 +102,17 @@ def analyze_sentiment(text):
     
     return sentiment, confidence
 
-def fetch_news(published_after, limit=3):
+def fetch_news(published_after):
     """Fetch news articles"""
     params = {
         "api_token": API_TOKEN,
         "countries": "sa",
         "filter_entities": "true",
-        "limit": limit,
+        "limit": MAX_ARTICLES,  # Always use the maximum allowed
         "published_after": published_after,
         "language": "en",
-        "must_have_entities": "true",  # Only get articles with entities
-        "group_similar": "true"  # Group similar articles to save API calls
+        "must_have_entities": "true",
+        "group_similar": "true"
     }
     try:
         response = requests.get(NEWS_API_URL, params=params, timeout=10)
@@ -119,7 +128,7 @@ def get_stock_data(symbol, period='1mo'):
     """Fetch stock data and calculate technical indicators"""
     try:
         stock = yf.Ticker(symbol)
-        df = stock.history(period=period)
+        df = stock.history(period=period, timeout=5)
         
         if df.empty:
             return None, f"No stock data available for {symbol}"
@@ -211,8 +220,14 @@ def main():
     days_ago = st.sidebar.slider("Show news published after:", 1, 30, 7)
     published_after = (datetime.now() - timedelta(days=days_ago)).strftime("%Y-%m-%d")
     
-    # Number of articles to fetch
-    article_limit = st.sidebar.number_input("Number of articles", min_value=1, max_value=100, value=3)
+    # Modify the article limit input to show the restriction
+    article_limit = st.sidebar.number_input(
+        "Number of articles (max 3)", 
+        min_value=1, 
+        max_value=MAX_ARTICLES, 
+        value=MAX_ARTICLES,
+        help="Due to API limitations, maximum 3 articles can be fetched"
+    )
 
     # Load company data
     companies_df = load_company_data(uploaded_file)
@@ -223,7 +238,7 @@ def main():
 
     if st.button("Fetch News", use_container_width=True):
         with st.spinner('Fetching and analyzing news...'):
-            news_data = fetch_news(published_after, limit=article_limit)
+            news_data = fetch_news(published_after)
 
             if not news_data:
                 st.warning("No news articles found for the selected time period.")
